@@ -96,13 +96,32 @@ func (s *Store) Clear() error {
 func (s *Store) Delete(id string, key string) error {
 	pathKey := s.PathTransformFunc(key)
 
-	defer func() {
+    defer func() {
 		log.Printf("deleted [%s] from disk", pathKey.Filename)
 	}()
 
 	firstPathNameWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.FirstPathName())
 
-	return os.RemoveAll(firstPathNameWithRoot)
+    err := os.Remove(firstPathNameWithRoot)
+    if err != nil {
+        return err
+    }
+
+    subFolders := strings.Split(firstPathNameWithRoot, "/")
+    for i:=len(subFolders)-1; i >= 0; i-- {
+        subPath := strings.Join(subFolders[:i+1], "/")
+        dirEntries, err := os.ReadDir(subPath)
+        if len(dirEntries) == 0 {
+            err = os.Remove(subPath)
+        }else{
+            break
+        }
+        if err != nil {
+            return err
+        }
+    }
+
+    return nil
 }
 
 func (s *Store) Write(id string, key string, r io.Reader) (int64, error) {
